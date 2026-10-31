@@ -19,7 +19,7 @@ Right there in the HTML was a comment nobody cleaned up:
 
 ​```html
 <!-- Internal dev portal moved to /dev - cleanup old files before pushing to prod -->
-​```
+```
 
 That's basically a gift. Checked `robots.txt` too, just to confirm, and it disallowed exactly the paths I'd expect someone to hide:
 
