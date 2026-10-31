@@ -22,13 +22,12 @@ Right there in the HTML was a comment nobody cleaned up:
 ```
 
 That's basically a gift. Checked `robots.txt` too, just to confirm, and it disallowed exactly the paths I'd expect someone to hide:
-
 ​```
 User-agent: *
 Disallow: /dev/
 Disallow: /backup/
 Disallow: /admin/
-​```
+```
 
 `/admin`, `/login`, `/api`, `/sitemap.xml` all came back 404. `/backup` gave a 403 though, which was interesting  that means the directory actually exists, it's just blocked from direct access. Filed that away for later.
 
