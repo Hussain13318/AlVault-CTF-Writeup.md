@@ -1,4 +1,4 @@
-# AlVault — CTF Write-up
+# AlVault  CTF Write-up
 
 **Lab:** [AlVault](https://hackerdna.com/labs/alvault)
 **Platform:** HackerDNA
@@ -11,7 +11,7 @@
 
 ## First impressions
 
-AlVault opened up as just a generic company page — "Cybersecurity Solutions Inc," some boilerplate text about providing security solutions, nothing on the page itself hinting at anything. Felt like a dead end for about ten seconds until I did the thing I should've done first: view page source.
+AlVault opened up as just a generic company page  "Cybersecurity Solutions Inc," some boilerplate text about providing security solutions, nothing on the page itself hinting at anything. Felt like a dead end for about ten seconds until I did the thing I should've done first: view page source.
 
 ## Finding the dev portal
 
@@ -30,21 +30,21 @@ Disallow: /backup/
 Disallow: /admin/
 ​```
 
-`/admin`, `/login`, `/api`, `/sitemap.xml` all came back 404. `/backup` gave a 403 though, which was interesting — that means the directory actually exists, it's just blocked from direct access. Filed that away for later.
+`/admin`, `/login`, `/api`, `/sitemap.xml` all came back 404. `/backup` gave a 403 though, which was interesting  that means the directory actually exists, it's just blocked from direct access. Filed that away for later.
 
 `/dev/` on the other hand loaded a full "Developer Portal" page with two tools listed: a File Search Tool and a File Upload Tool.
 
 ## Dead end, then the real tool
 
-My first instinct was to open the File Search Tool at `/dev/search.php`. It had a "Folder Path" and "File Name" input, with placeholder examples like `/var/www/html/backup` and `credentials.txt`. I tried the literal example values and got "TRY HARDER!" back in big red letters. Tried a handful of injection payloads in both fields too — semicolons, `&&`, backticks — and kept getting the same unhelpful response. I was stuck here for a bit.
+My first instinct was to open the File Search Tool at `/dev/search.php`. It had a "Folder Path" and "File Name" input, with placeholder examples like `/var/www/html/backup` and `credentials.txt`. I tried the literal example values and got "TRY HARDER!" back in big red letters. Tried a handful of injection payloads in both fields too  semicolons, `&&`, backticks  and kept getting the same unhelpful response. I was stuck here for a bit.
 
-That's when I went and found a writeup someone else had posted on this exact lab, and it mentioned a *second* search tool — `file_search.php`, not `search.php`. So I went looking for it directly:
+That's when I went and found a writeup someone else had posted on this exact lab, and it mentioned a *second* search tool  `file_search.php`, not `search.php`. So I went looking for it directly:
 
 ​```
 /dev/file_search.php
 ​```
 
-Different tool entirely — titled "File Search Tool," with a notice saying "Development environment - File search functionality under maintenance," and a single "Search pattern" field instead of two separate inputs.
+Different tool entirely  titled "File Search Tool," with a notice saying "Development environment - File search functionality under maintenance," and a single "Search pattern" field instead of two separate inputs.
 
 ## Confirming command injection via grep
 
@@ -59,7 +59,7 @@ Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f 
 
 That's grep's own usage text coming back in the response. Which confirmed the backend was literally shelling out to `grep` with whatever I typed as the pattern, no sanitization.
 
-So the obvious next move was a catch-all regex — just a single `.`, which matches every line in a file:
+So the obvious next move was a catch-all regex  just a single `.`, which matches every line in a file:
 
 ​```
 ### INTERNAL USE ONLY - DO NOT SHARE ###
@@ -78,7 +78,7 @@ Access Key ID: [redacted]
 Secret Key: [redacted]
 ​```
 
-That one pattern dumped an entire internal backup file — database creds, SSH creds, Redis auth, AWS keys, the works. This part was satisfying once it clicked — a single character as input and the whole thing fell open.
+That one pattern dumped an entire internal backup file  database creds, SSH creds, Redis auth, AWS keys, the works. This part was satisfying once it clicked  a single character as input and the whole thing fell open.
 
 ## Getting a shell
 
@@ -88,7 +88,7 @@ Used the leaked SSH creds straight away:
 ssh developer@<target-ip>
 ​```
 
-Password: *(redacted — pulled from the leaked backup file above)*
+Password: *(redacted  pulled from the leaked backup file above)*
 
 ​```
 Welcome to AlVault!
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         backup_files(sys.argv[1])
 ​```
 
-That `os.system(f"tar -czf {backup_path} {directory}")` line is the whole game. Whatever `directory` is gets dropped straight into a shell command, no escaping at all. If sudo had let me pass arguments on the command line this would've been trivial, but the sudo rule only authorizes the script with zero arguments — so I had to go through the interactive `input()` prompt instead, which still works because the script falls back to it when there's no argv.
+That `os.system(f"tar -czf {backup_path} {directory}")` line is the whole game. Whatever `directory` is gets dropped straight into a shell command, no escaping at all. If sudo had let me pass arguments on the command line this would've been trivial, but the sudo rule only authorizes the script with zero arguments  so I had to go through the interactive `input()` prompt instead, which still works because the script falls back to it when there's no argv.
 
 Only catch: `os.path.isdir(directory)` has to pass first, so whatever malicious string I use has to actually exist as a real directory on disk. So I made the directory name itself be the payload:
 
@@ -163,7 +163,7 @@ tar: error exit delayed from previous errors
 Backup of /tmp/$(id) created at /tmp/backup.tar.gz
 ​```
 
-`$(id)` got expanded by the shell before `tar` even ran, and it shows `uid=0(root) gid=0(root)` — meaning whatever I put in that directory name executes as root. That's the moment it actually clicked that I had full root command execution, not just a crash or an error.
+`$(id)` got expanded by the shell before `tar` even ran, and it shows `uid=0(root) gid=0(root)`  meaning whatever I put in that directory name executes as root. That's the moment it actually clicked that I had full root command execution, not just a crash or an error.
 
 ## Grabbing the root flag
 
@@ -187,7 +187,7 @@ Since the whole thing runs as root, `$HOME` resolves to `/root`, so the copy com
 | Vuln | Root Cause | Impact | Fix |
 |---|---|---|---|
 | **OS Command Injection** via `file_search.php` | User-supplied "search pattern" passed unsanitized into a `grep` call on the backend | Leaked an entire internal backup file containing DB, SSH, Redis, and AWS credentials with a single character (`.`) as input | Never pass raw user input to shell-executed commands; if grep-like functionality is needed, use a library call (e.g. Python's `re` module) instead of shelling out, or strictly validate input against an allowlist |
-| **Credential exposure via plaintext backup** | Production secrets stored unencrypted in a backup file reachable through the injection bug | Enabled SSH access as a real low-privileged user on the box | Secrets shouldn't live in flat backup files at all — use a secrets manager, and backups that must contain sensitive data need to be encrypted and access-controlled |
+| **Credential exposure via plaintext backup** | Production secrets stored unencrypted in a backup file reachable through the injection bug | Enabled SSH access as a real low-privileged user on the box | Secrets shouldn't live in flat backup files at all  use a secrets manager, and backups that must contain sensitive data need to be encrypted and access-controlled |
 | **OS Command Injection** in `/opt/backup.py` via `os.system()` | The `directory` variable is f-string interpolated directly into a shell command with no escaping | Allowed command substitution (`$(...)`) in the directory name to execute arbitrary commands as root, since the script was authorized to run via `sudo NOPASSWD` | Use `subprocess.run([...], shell=False)` with an argument list instead of `os.system()`, so there's no shell interpretation of the input at all |
 | **Excessive sudo privilege** on a script that accepts user input | `NOPASSWD` sudo rule granted root execution of a script whose logic ultimately trusts attacker-controlled data | Turned a low-privilege account into full root with no password prompt at any point | Avoid giving root execution rights to any script that processes user-controlled input, even indirectly through `input()`; if backup automation needs elevated rights, it should take zero dynamic input and work against hardcoded, validated paths only |
 
